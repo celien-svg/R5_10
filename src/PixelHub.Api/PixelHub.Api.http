@@ -1,0 +1,17 @@
+# Carnet de tests PixelHub — cliquer sur « Send request » au-dessus de chaque bloc.
+# Port : celui affiché par `dotnet run` (5199 via launchSettings.json),
+# et aussi celui de l'API conteneurisée (docker compose --profile app up -d).
+@host = http://localhost:5199
+
+### Santé
+GET {{host}}/
+
+### Séance 1 — PostgreSQL
+GET {{host}}/players
+Accept: application/json
+
+### Séance 1 — bonus : créer un joueur
+POST {{host}}/players
+Content-Type: application/json
+
+{ "pseudo": "Pixel", "coins": 500 }
