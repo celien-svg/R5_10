@@ -51,9 +51,7 @@ On commence par le shell. Le driver .NET ajoute une couche de sérialisation et 
 ```bash
 docker compose cp data/games.json mongo:/tmp/games.json
 
-docker compose exec mongo mongoimport \
-  -u pixelhub -p pixelhub_dev --authenticationDatabase admin \
-  --db pixelhub --collection jeux --jsonArray --file /tmp/games.json
+docker compose exec mongo mongoimport -u pixelhub -p pixelhub_dev --authenticationDatabase admin --db pixelhub --collection jeux --jsonArray --file /tmp/games.json
 ```
 
 > Notez `--authenticationDatabase admin`. Sans lui, l'authentification échoue. La question **Q3** vous demandera pourquoi.
@@ -77,37 +75,116 @@ use pixelhub
 ```javascript
 // 1. Combien de jeux dans la collection ?
 db.jeux.countDocuments()
-
+la réponse est 10 
 // 2. Afficher un document en entier
 db.jeux.findOne()
+
+{
+  _id: ObjectId('6ac39854db760592b9f37c69'),
+  titre: 'Rocket League',
+  genre: 'Sport',
+  note: 4.3,
+  anneeSortie: 2015,
+  plateformes: [ 'PC', 'PS5', 'Xbox Series', 'Switch' ],
+  tags: [ 'compétitif', 'voiture', 'arcade' ],
+  joueursParEquipe: 3,
+  classementCompetitif: true
+}
 ```
 
 **Q1.** Vous retrouvez le champ `_id`, déjà aperçu au TP 1 (étape 6.2), que personne n'a écrit dans `games.json`. Cette fois, intéressez-vous à **qui l'a fabriqué** : le serveur MongoDB, ou l'outil qui a envoyé les documents (`mongoimport`) ? Comparez avec l'`Id` 4 de *Pixel* au TP 1 (Q8) : qui l'avait choisi, et à quel moment le connaissiez-vous ?
+mongoimport, avant c'est postgresql qui le généré et on le récupérer avec savechange()
 
 ```javascript
 // 3. Tous les FPS
 db.jeux.find({ genre: "FPS" })
 
+[
+  {
+    _id: ObjectId('6ac39854db760592b9f37c70'),
+    titre: 'Valorant',
+    genre: 'FPS',
+    note: 4.1,
+    anneeSortie: 2020,
+    plateformes: [ 'PC' ],
+    tags: [ 'compétitif', 'tir', 'héros' ],
+    joueursParEquipe: 5,
+    nombreAgents: 26,
+    classementCompetitif: true
+  },
+  {
+    _id: ObjectId('6ac39854db760592b9f37c72'),
+    titre: 'Counter-Strike 2',
+    genre: 'FPS',
+    note: 4.5,
+    anneeSortie: 2023,
+    plateformes: [ 'PC' ],
+    tags: [ 'compétitif', 'tir', 'équipe' ],
+    joueursParEquipe: 5,
+    cartes: [ 'Dust II', 'Mirage', 'Inferno', 'Nuke' ],
+    classementCompetitif: true
+  }
+]
+
 // 4. Les jeux notés au moins 4.5 — titre et note seulement
 db.jeux.find({ note: { $gte: 4.5 } }, { titre: 1, note: 1, _id: 0 })
 
+[
+  { titre: "Baldur's Gate 3", note: 4.9 },
+  { titre: 'Stardew Valley', note: 4.8 },
+  { titre: 'Hades II', note: 4.7 },
+  { titre: 'Mario Kart 8 Deluxe', note: 4.6 },
+  { titre: 'Terraria', note: 4.7 },
+  { titre: 'Counter-Strike 2', note: 4.5 }
+]
+
 // 5. Les jeux disponibles sur Switch
 db.jeux.find({ plateformes: "Switch" }, { titre: 1, _id: 0 })
+
+[
+  { titre: 'Rocket League' },
+  { titre: 'Stardew Valley' },
+  { titre: 'Hades II' },
+  { titre: 'Mario Kart 8 Deluxe' },
+  { titre: 'Vampire Survivors' },
+  { titre: 'Terraria' }
+]
+
 ```
 
 **Q2.** À l'exercice 5, `plateformes` est un tableau et vous avez écrit `{ plateformes: "Switch" }`, sans opérateur particulier. Comment auriez-vous fait la même chose en SQL, avec un modèle relationnel normalisé ?
+
+SELECT j.titre
+FROM jeux AS j
+JOIN jeu_plateforme AS jp ON jp.jeu_id = j.id
+JOIN plateformes AS p ON p.id = jp.plateforme_id
+WHERE p.nom = 'Switch';
+
 
 ```javascript
 // 6. Les jeux coopératifs (via les tags)
 db.jeux.find({ tags: "coopératif" }, { titre: 1, _id: 0 })
 
+[
+  { titre: "Baldur's Gate 3" },
+  { titre: 'Stardew Valley' },
+  { titre: 'Terraria' }
+]
+
 // 7. Les jeux qui POSSÈDENT un champ joueursParEquipe
 db.jeux.find({ joueursParEquipe: { $exists: true } },
              { titre: 1, joueursParEquipe: 1, _id: 0 })
+
+             [
+  { titre: 'Rocket League', joueursParEquipe: 3 },
+  { titre: 'Valorant', joueursParEquipe: 5 },
+  { titre: 'Counter-Strike 2', joueursParEquipe: 5 }
+]
+
 ```
 
 **Q3.** Vous tapez `--authenticationDatabase admin` depuis le TP 1 sans qu'on vous ait dit pourquoi. Pourquoi faut-il l'ajouter aux commandes `mongoimport` et `mongosh` ? Où se trouve le compte `pixelhub` ?
-
+ça sert a savoir où ils doive aller chercher les donnée pour s'autentifié au compte. Ces donnée se situe dans le docker-compe.yml
 ### 1.4 L'expérience à faire
 
 ```javascript
@@ -120,17 +197,27 @@ db.jeux.insertOne({
   champCompletementInvente: "ça marche quand même"
 })
 
+{
+  acknowledged: true,
+  insertedId: ObjectId('6ac39b519b312c150d22aea6')
+}
+
 db.jeux.countDocuments()
+11s
 ```
 
 **Q4.** Personne ne vous a arrêté. Est-ce une bonne nouvelle ou un problème ? Argumentez en imaginant un projet à quatre développeurs, six mois plus tard.
+on risque d'avoir des nouveaux et type, ou bien des chaine a la place de nombre ce qui peux empecher certaine requete de trouver ce qu'elle recherche.
 
 ```javascript
 // 9. Une faute de frappe volontaire — que se passe-t-il ?
 db.Jeux.find({ genre: "FPS" })
+
+il ne se passe rien
 ```
 
 **Q5.** Le résultat de l'exercice 9 vous surprend-il ? Que s'est-il passé exactement, et pourquoi n'y a-t-il eu **aucun message d'erreur** ?
+ non il cherche comme même mais ne trouve rien de ce qu'ile devrais trouver
 
 ### 1.5 Modifier et supprimer
 
@@ -163,8 +250,12 @@ db.jeux.updateOne({ titre: "Valorant" }, { note: 4.4 })
 
 **Q6.** L'exercice 16 échoue. Recopiez le message d'erreur, et expliquez pourquoi MongoDB refuse. Quelle commande utiliseriez-vous si vous vouliez **réellement** remplacer le document en entier ?
 
+MongoInvalidArgumentError: Update document requires atomic operators il me faut le $set pour modifier le document
+
 **Q7.** À l'exercice 12, vous avez ajouté un champ `nbVotes` à un seul document, alors que les dix autres n'en ont pas. Quelle commande SQL aurait été nécessaire pour faire l'équivalent en relationnel, et quelle en aurait été la conséquence sur les autres lignes ?
 
+ALTER TABLE jeux ADD COLUMN nbVotes integer;
+UPDATE jeux SET nbVotes = 0 WHERE titre = 'Terraria';
 ---
 
 ## Partie 2 — MongoDB dans PixelHub (45 min)
@@ -279,6 +370,7 @@ public class MongoGameCatalog : IGameCatalog
 
 **Q8.** Lisez `IGameCatalog`. Y a-t-il un seul endroit dans cette interface où le mot « Mongo » apparaît ? Pourquoi est-ce important, à votre avis ?
 
+non C’est important car le reste de l’application dépend du contrat IGameCatalog, et non directement de MongoDB.
 ### 2.5 L'enregistrement
 
 Dans `Program.cs`, **tout en haut du fichier**, à la suite des `using` déjà présents :
@@ -349,7 +441,7 @@ Appelez `/games` depuis le fichier `.http`.
 **Ça va probablement échouer.** C'est prévu. Lisez le message d'exception attentivement avant de continuer.
 
 **Q9.** Quelle exception obtenez-vous, et sur quel champ ? Expliquez la cause : qu'est-ce que le driver a essayé de faire, et pourquoi n'a-t-il pas su ?
-
+il cherche oueursParEquipe mais il n'existe pas pas 
 ### 2.8 Corriger
 
 Ajoutez l'attribut `[BsonIgnoreExtraElements]` sur la classe `Game` :
@@ -367,7 +459,7 @@ Relancez. `/games` doit maintenant renvoyer le catalogue.
 > Le champ `id` s'affiche sous une forme étrange, `{ "timestamp": …, "creationTime": … }`. C'est normal : le sérialiseur JSON d'ASP.NET Core ne connaît pas le type `ObjectId` et en recopie les propriétés publiques. Ce n'est pas un bug de vos données, on le règle en séance 3. Au passage, `creationTime` confirme votre réponse à la Q1 : un `ObjectId` contient la date de sa fabrication.
 
 **Q10.** `[BsonIgnoreExtraElements]` fait disparaître l'erreur, mais **au prix de quoi** ? Que devient `joueursParEquipe` quand vous appelez `/games` ?
-
+ il disparais
 ### 2.9 Récupérer quand même les champs spécifiques
 
 Essayez cette variante. Ajoutez en haut de `Models/Game.cs` :
@@ -395,6 +487,12 @@ Relancez et rappelez `/games` : chaque jeu porte maintenant un objet `specifique
 **Une fois la Q11 rédigée, retirez ces deux propriétés et le `using` ajouté** : la suite du module (le cache Redis de la séance 3) repart de la classe `Game` de l'étape 2.8.
 
 **Q11.** Comparez les trois approches possibles pour gérer un schéma variable en C# : `[BsonIgnoreExtraElements]`, `[BsonExtraElements]`, et une hiérarchie de classes (`FpsGame : Game`, etc.). Quel est l'avantage et l'inconvénient de chacune ?
+
+[BsonIgnoreExtraElements] : le modèle reste simple et accepte les documents qui ont des champs inconnus. En revanche, ces champs sont ignorés par l’application : joueursParEquipe ne sera pas renvoyé par games.
+
+[BsonExtraElements] : les champs non déclarés sont conservés dans une propriété, par exemple un BsonDocument. On peut donc les récupérer sans modifier la classe pour chaque nouveau champ. Mais ils ne sont pas fortement typés, et il faut les convertir ou les adapter pour les exposer proprement en JSON.
+
+Une hiérarchie de classes (FpsGame : Game, etc.) : chaque variante peut avoir des propriétés typées, ce qui rend le code plus explicite et facilite son traitement. En contrepartie, il faut créer et maintenir plusieurs classes, et configurer comment le driver reconnaît la bonne classe pour chaque document.
 
 ### 2.10 Vérification obligatoire
 
@@ -444,6 +542,17 @@ Accept: application/json
 ```
 
 **Q12.** Écrivez la requête SQL qui produirait le même résultat sur une table `jeux(titre, genre, note)`. Comparez les deux. Est-ce ici que MongoDB apporte quelque chose par rapport à PostgreSQL ? Si non, où l'apport se situe-t-il dans ce TP ?
+
+SELECT genre,
+       AVG(note) AS note_moyenne,
+       COUNT(*) AS nombre
+FROM jeux
+GROUP BY genre
+ORDER BY note_moyenne DESC;
+
+Les deux requêtes regroupent les jeux par genre, calculent la note moyenne et le nombre de jeux, puis trient par moyenne décroissante. Ici, MongoDB n’apporte pas d’avantage particulier : PostgreSQL réalise cette agrégation aussi simplement.
+
+’intérêt de MongoDB se voit plutôt dans le modèle documentaire : les jeux peuvent avoir des champs différents (joueursParEquipe, cartes, nombreAgents…), et des tableaux comme plateformes ou tags, sans imposer la même structure à tous les documents ni normaliser ces données dans plusieurs tables.
 
 ---
 
