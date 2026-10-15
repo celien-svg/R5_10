@@ -8,6 +8,7 @@ namespace PixelHub.Api.Models;
 public class Game
 {
     [BsonId]
+    [JsonConverter(typeof(ObjectIdJsonConverter))]
     public ObjectId Id { get; set; }
 
     [BsonElement("titre")]
