@@ -20,9 +20,9 @@ public class MongoGameCatalog : IGameCatalog
 
     public async Task<List<Game>> GetTopRatedAsync(int count) =>
         await _jeux.Find(_ => true)
-                   .SortByDescending(g => g.Note)
-                   .Limit(count)
-                   .ToListAsync();
+                .SortByDescending(g => g.Note)
+                .Limit(count)
+                .ToListAsync();
     public async Task<List<GenreStats>> GetStatsByGenreAsync()
     {
         return await _jeux.Aggregate()
@@ -32,5 +32,16 @@ public class MongoGameCatalog : IGameCatalog
                 group.Count()))
             .SortByDescending(s => s.NoteMoyenne)
             .ToListAsync();
+    }
+    public async Task<Game?> GetByTitleAsync(string titre) =>
+        await _jeux.Find(g => g.Titre == titre).FirstOrDefaultAsync();
+
+    public async Task<List<Game>> GetByTitlesAsync(IEnumerable<string> titres)
+    {
+        var titresList = titres.Distinct().ToList();
+        if (titresList.Count == 0)
+            return new List<Game>();
+
+        return await _jeux.Find(g => titresList.Contains(g.Titre)).ToListAsync();
     }
 }

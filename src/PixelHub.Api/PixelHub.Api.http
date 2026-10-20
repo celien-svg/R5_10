@@ -31,3 +31,37 @@ Accept: application/json
 ### Séance 2 — agrégation : note moyenne par genre
 GET {{host}}/games/stats
 Accept: application/json
+
+### Séance 4 — Neo4j : amis
+GET {{host}}/social/Nova/friends
+Accept: application/json
+
+### Séance 4 — Neo4j : recommandations de jeux
+GET {{host}}/social/Nova/recommendations?depth=2
+Accept: application/json
+
+### Séance 4 — Neo4j : suggestions d'amis
+GET {{host}}/social/Nova/friend-suggestions
+Accept: application/json
+
+### Séance 4 bis — fiche joueur (4 moteurs dans une réponse)
+GET {{host}}/players/Nova/profile
+Accept: application/json
+
+### Séance 4 bis — boutique : Nova achète Terraria
+POST {{host}}/shop/Nova/buy/Terraria
+
+### Séance 4 bis — boutique : jeu gratuit
+POST {{host}}/shop/Nova/buy/Valorant
+
+### Séance 4 bis — meilleures ventes
+GET {{host}}/shop/bestsellers
+Accept: application/json
+
+### Séance 4 bis — mission 4 : reconstruire les projections depuis PostgreSQL
+POST {{host}}/admin/resync
+
+### Mission 4 — Ombre achète Rocket League, Neo4j arrêté
+POST {{host}}/shop/Ombre/buy/Rocket%20League
+
+

@@ -20,16 +20,32 @@ public class CachedGameCatalog : IGameCatalog
 
     public async Task<List<Game>> GetAllAsync()
     {
-        var cached = await _cache.StringGetAsync(KeyAll);
-        if (cached.HasValue)
-            return JsonSerializer.Deserialize<List<Game>>((string)cached!)!;
+        // Mission 4 : un cache en panne ne doit pas faire tomber le catalogue.
+        // Redis n'est qu'une copie : sans lui, on sert MongoDB directement (plus lent, mais juste).
+        try
+        {
+            var cached = await _cache.StringGetAsync(KeyAll);
+            if (cached.HasValue)                                   // cache hit
+                // (string) explicite : avec StackExchange.Redis 3.x, RedisValue se convertit aussi
+                // en ReadOnlySpan<byte>, et `Deserialize(cached!)` devient ambigu (CS0121).
+                return JsonSerializer.Deserialize<List<Game>>((string)cached!)!;
+        }
+        catch (Exception e) when (e is RedisException or RedisTimeoutException)
+        {
+            // Dans un vrai projet, on journaliserait la panne ici : un repli silencieux masque l'incident.
+            return await _source.GetAllAsync();
+        }
 
-        var jeux = await _source.GetAllAsync();
-        await _cache.StringSetAsync(KeyAll, JsonSerializer.Serialize(jeux), Ttl);
+        var jeux = await _source.GetAllAsync();                // cache miss
+        await _cache.StringSetAsync(KeyAll,
+            JsonSerializer.Serialize(jeux), Ttl);
         return jeux;
     }
 
     public Task<List<Game>> GetByGenreAsync(string genre) => _source.GetByGenreAsync(genre);
     public Task<List<Game>> GetTopRatedAsync(int count) => _source.GetTopRatedAsync(count);
     public Task<List<GenreStats>> GetStatsByGenreAsync() => _source.GetStatsByGenreAsync();
+    public Task<Game?> GetByTitleAsync(string titre) => _source.GetByTitleAsync(titre);
+    public Task<List<Game>> GetByTitlesAsync(IEnumerable<string> titres) => _source.GetByTitlesAsync(titres);
+
 }
